@@ -77,6 +77,10 @@ export default {
     globalEvents: {
       type: Array,
       default: () => ([])
+    },
+    dico: {
+      type: Array,
+      default: () => ([])
     }
   },
   watch: {
@@ -100,7 +104,13 @@ export default {
   },
   methods: {
     initialize() {
-      const cmOptions = Object.assign({}, this.globalOptions, this.options)
+      const cmOptions = Object.assign({
+        hintOptions:
+        {
+          completeSingle: false,
+          hint: this.hint
+        }
+      }, this.globalOptions, this.options)
       if (this.merge) {
         this.codemirror = CodeMirror.MergeView(this.$refs.mergeview, cmOptions)
         this.cminstance = this.codemirror.edit
@@ -109,11 +119,16 @@ export default {
         this.cminstance = this.codemirror
         this.cminstance.setValue(this.code || this.value || this.content)
       }
+
       this.cminstance.on('change', cm => {
         this.content = cm.getValue()
         if (this.$emit) {
-          this.$emit('input', this.content)
+          this.$emit('input', this.content, this.cminstance)
         }
+      })
+
+      this.cminstance.on("keypress", cm => {
+        cm.showHint()
       })
 
       // 所有有效事件（驼峰命名）+ 去重
@@ -214,6 +229,44 @@ export default {
       // Restore values
       this.cminstance.doc.history = history
       this.cminstance.doc.cleanGeneration = cleanGeneration
+    },
+    suggest(searchString) {
+      let token = searchString
+      if (searchString.startsWith(".")) token = searchString.substring(1)
+      else token = searchString.toLowerCase()
+      const resu = []
+      const N = this.dico.length
+
+      for (let i = 0; i < N; i++) {
+        const keyword = this.dico[i].text.toLowerCase()
+        let suggestion = null
+        if (keyword.startsWith(token)) {
+          suggestion = Object.assign({ score: N + (N - i) }, this.dico[i])
+        } else if (keyword.includes(token)) {
+          suggestion = Object.assign({ score: N - i }, this.dico[i])
+        }
+        if (suggestion) resu.push(suggestion)
+      }
+
+      if (searchString.startsWith(".")) {
+        resu.forEach(s => {
+          if (s.className == "column") s.score += N
+          else if (s.className == "sql") s.score -= N
+          return s
+        })
+      }
+
+      return resu.sort((a, b) => b.score - a.score)
+    },
+    hint(editor) {
+      const cur = editor.getCursor()
+      const token = editor.getTokenAt(cur)
+      const searchString = token.string
+      return {
+        list: this.suggest(searchString),
+        from: CodeMirror.Pos(cur.line, token.start),
+        to: CodeMirror.Pos(cur.line, token.end)
+      }
     }
   },
   mounted() {
