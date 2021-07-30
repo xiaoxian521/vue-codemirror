@@ -135,6 +135,7 @@ export default {
       const tmpEvents = {}
       const allEvents = [
         'scroll',
+        'change',
         'changes',
         'beforeChange',
         'cursorActivity',
