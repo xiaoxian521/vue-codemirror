@@ -167,7 +167,9 @@ export default {
         "dragenter",
         "dragover",
         "dragleave",
-        "drop"
+        "drop",
+        "delete",
+        "clear"
       ]
         .concat(this.events)
         .concat(this.globalEvents)
